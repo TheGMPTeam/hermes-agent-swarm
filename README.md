@@ -92,6 +92,54 @@ python3 vgctl.py swarm status | stop | models
 Repoint any model via the constants at the top of `scripts/swarm.py`
 (`LONGCAT`, `SOLAR`, `VISION_MODEL`, `VISION_BASE_URL`, `ROLE_MODEL`).
 
+## How to get the model names
+
+The free `:free` slugs aren't obvious — most guesses 404, and the display name in the
+Portal UI (e.g. "Solar Pro4:Free") is **not** the slug you configure (that's
+`upstage/solar-pro4:free`). Three reliable ways to discover the exact `provider/model`
+string:
+
+1. **Switch the model in the Hermes chat (easiest).** In the Hermes desktop/app UI, change
+   the model dropdown to the one you want. The active session now runs on that model, and you
+   (or the agent) can read the exact slug with:
+   ```bash
+   hermes config get model          # -> default: <provider/model>
+   ```
+   Copy that `provider/model` value into `scripts/swarm.py`.
+
+2. **Read the Portal's recommended-model cache (no probing).** Hermes caches the live,
+   account-specific model list — the slugs it contains are exactly the ones that resolve:
+   ```bash
+   # print every :free slug available to your account
+   python3 - <<'PY'
+   import json, os, glob, re
+   home = os.path.expanduser("~/.hermes")
+   for p in glob.glob(os.path.join(home, "**", "nous_recommended_cache.json"), recursive=True):
+       try: d = json.load(open(p))
+       except Exception: continue
+       for s in sorted(set(re.findall(r'"([A-Za-z0-9_./\-]+?:free)"', json.dumps(d)))):
+           print(s)
+   PY
+   ```
+
+3. **Probe a candidate with `hermes chat`.** Verify a slug live:
+   ```bash
+   hermes chat -m "<provider/model>" -q "say pong"
+   ```
+   - *"not found"* / 404 → slug invalid
+   - *"Billing or credits exhausted"* → exists, needs paid credits
+   - *"context window ... below minimum"* → exists, too small for Hermes (needs ≥64K)
+   - clean reply → **working**
+
+Once you have a working `provider/model`, set it per-role in `ROLE_MODEL` (in
+`scripts/swarm.py`) and re-run `setup`, or override one task at dispatch time:
+`hermes kanban set-model <task_id> <provider/model>`.
+
+> Verified working free models on this Portal: `meituan/longcat-2.0:free` (1M ctx),
+> `upstage/solar-pro4:free` (512K ctx), `tencent/hy3:free` (256K ctx). Vision uses a
+> **local Ollama** model (`minicpm-v4.6`), not Nous. See
+> [`references/nous-free-models.md`](references/nous-free-models.md) for the full probe log.
+
 ## How it works
 
 - **Dispatcher, not a daemon.** The standalone `hermes kanban daemon` is deprecated; the real
