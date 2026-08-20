@@ -140,6 +140,27 @@ Once you have a working `provider/model`, set it per-role in `ROLE_MODEL` (in
 > **local Ollama** model (`minicpm-v4.6`), not Nous. See
 > [`references/nous-free-models.md`](references/nous-free-models.md) for the full probe log.
 
+## Rate limiting on the free tier
+
+The Nous free tier caps requests per 60-second window. With several workers firing in
+parallel, you can hit the wall. How to stay under it depends on how you drive the models:
+
+- **Using the Hermes CLI / gateway dispatcher (this skill's default):** you usually do NOT
+  need to add a delay. Hermes detects HTTP 429 (`rate_limited`) internally and applies a
+  **cooldown/quarantine** with *on-disk state shared across the parallel worker processes*,
+  so concurrent workers coordinate backoff automatically. Just let the dispatcher retry.
+- **Driving the API yourself (custom Python loop calling `hermes chat` or `/v1` directly):**
+  insert a small inter-call delay so you never exceed ~50 requests / 60s. Example:
+  ```python
+  import time
+  for task in tasks:
+      do_call(task)
+      time.sleep(1.2)   # spreads calls so you stay under the per-minute cap
+  ```
+  (A `sleep` placed in this repo's `swarm.py` will NOT help — `swarm.py` only creates Kanban
+  tasks, a handful per launch; the model calls happen inside the spawned worker agents, where
+  Hermes's own cooldown already applies.)
+
 ## How it works
 
 - **Dispatcher, not a daemon.** The standalone `hermes kanban daemon` is deprecated; the real
