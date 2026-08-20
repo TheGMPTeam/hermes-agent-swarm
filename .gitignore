@@ -1,0 +1,6 @@
+# local swarm run state — not part of the skill source
+swarm-workspaces/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
