@@ -121,4 +121,16 @@ synthesizer won't start until verifier passes. The dispatcher drives all of it.
 - **Vision needs a real vision model.** The `visioner` profile points at a LOCAL Ollama
   host (`10.0.0.120:11434`) running `minicpm-v4.6` (verified to describe real images).
   If that host/Ollama is down, vision workers fail — fall back to `--no-vision` or fix the
-  Ollama base URL in `VISION_BASE_URL`.
+  Ollama base URL in `VISION_BASE_URL`. Verify it actually sees images before a run —
+  see `references/ollama-vision-test.md`.
+- **Publishing this skill to GitHub (SSH, no PAT):** the machine's SSH key is a
+  per-repo **deploy key** — pushing to a DIFFERENT repo fails with
+  `denied to deploy key`. Convert https→`git@github.com:...`, add the key to the
+  target repo with **Allow write access**, then push. Full recipe + fix in
+  `references/github-ssh-deploy-keys.md`.
+
+## References
+- `references/kanban-swarm-debugging.md` — debugging notes from the original build (dispatcher, link direction, scratch vs dir:).
+- `references/nous-free-models.md` — which free Nous models actually work on this Portal (longcat-2.0, solar-pro4, hy3; everything else 404s).
+- `references/ollama-vision-test.md` — how to prove a local Ollama vision model genuinely sees images before trusting it in a swarm.
+- `references/github-ssh-deploy-keys.md` — SSH deploy-key `denied to deploy key` fix for the no-PAT publishing workflow.
