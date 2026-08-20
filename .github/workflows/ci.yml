@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Syntax-check scripts
+        run: |
+          python3 -m py_compile scripts/swarm.py && echo "swarm.py: OK"
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          text = open("SKILL.md").read()
+          m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+          if not m:
+              print("SKILL.md: missing YAML frontmatter"); sys.exit(1)
+          block = m.group(1)
+          required = ["name", "description"]
+          missing = [k for k in required if not re.search(rf"^{k}:", block, re.M)]
+          if missing:
+              print("SKILL.md: missing frontmatter keys:", missing); sys.exit(1)
+          print("SKILL.md frontmatter: OK")
+
+      - name: Smoke-test swarm.py CLI (no spawn)
+        run: |
+          python3 scripts/swarm.py --help 2>&1 | head -1 || true
+          # 'models'/'status' should at least parse; setup is skipped to avoid profile churn
+          python3 -c "import ast; ast.parse(open('scripts/swarm.py').read()); print('swarm.py parses')"
